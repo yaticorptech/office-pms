@@ -300,6 +300,12 @@ Both platforms deploy from `main` on this repository:
 Railway builds from the repository root rather than `server/`, because
 `Dockerfile.server` copies from `server/` and needs the root as its build context.
 
+The Railway service pins `PORT=8090` and its domain's target port is set to 8090 to
+match `EXPOSE` in the Dockerfile. Leave these alone: if Railway injects its own `PORT`
+while the edge routes by `EXPOSE`, the two disagree and every public request is
+refused at the proxy — while the container looks perfectly healthy in the logs and
+passes Railway's internal health check.
+
 ### Split hosting — client on Vercel, API on Railway
 
 Config for this is committed: `client/vercel.json` (SPA rewrite, security headers,
