@@ -17,7 +17,7 @@ export const getProject = asyncHandler(async (req, res) => {
 });
 
 export const getProjectTasks = asyncHandler(async (req, res) => {
-  const data = await projectService.getProjectTasks(req.params.id);
+  const data = await projectService.getProjectTasks(req.params.id, req.user);
   res.json({ success: true, data });
 });
 

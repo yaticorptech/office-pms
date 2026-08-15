@@ -116,27 +116,55 @@ export const getTaskCounts = async (query = {}, requestingUser) => {
   return counts;
 };
 
+/**
+ * Sorts MongoDB cannot express directly on the stored fields:
+ * - `priority` — the stored slugs are not in rank order (urgent < high alphabetically).
+ * - `dueDate`  — Mongo orders `null` before every real date, but an undated task
+ *   belongs at the end of the list in both directions, not the top.
+ *
+ * Both are resolved with computed fields in an aggregation.
+ */
+const COMPUTED_SORTS = new Set(['priority', '-priority', 'dueDate', '-dueDate']);
+
+const buildComputedSortStage = (sortKey) => {
+  const direction = sortKey.startsWith('-') ? -1 : 1;
+
+  if (sortKey.endsWith('priority')) {
+    return { priorityWeight: direction, undated: 1, dueDate: 1, _id: 1 };
+  }
+  return { undated: 1, dueDate: direction, createdAt: -1, _id: 1 };
+};
+
 export const listTasks = async (query = {}, requestingUser) => {
   const { page, limit, skip } = getPagination(query);
   const filter = buildTaskFilter(query, requestingUser);
   const sortKey = query.sort || 'dueDate';
   const countsPromise = getTaskCounts(query, requestingUser);
 
-  if (sortKey === 'priority' || sortKey === '-priority') {
-    const direction = sortKey.startsWith('-') ? -1 : 1;
+  if (COMPUTED_SORTS.has(sortKey)) {
     const [data, total, counts] = await Promise.all([
       Task.aggregate([
         { $match: filter },
-        { $addFields: { priorityWeight: { $switch: {
-          branches: Object.entries(PRIORITY_WEIGHT).map(([value, weight]) => ({
-            case: { $eq: ['$priority', value] },
-            then: weight,
-          })),
-          default: 0,
-        } } } },
-        { $sort: { priorityWeight: direction, dueDate: 1 } },
+        {
+          $addFields: {
+            priorityWeight: {
+              $switch: {
+                branches: Object.entries(PRIORITY_WEIGHT).map(([value, weight]) => ({
+                  case: { $eq: ['$priority', value] },
+                  then: weight,
+                })),
+                default: 0,
+              },
+            },
+            // 1 for "has no due date", so ascending order pushes those rows last.
+            undated: { $cond: [{ $eq: ['$dueDate', null] }, 1, 0] },
+          },
+        },
+        { $sort: buildComputedSortStage(sortKey) },
         { $skip: skip },
         { $limit: limit },
+        // Sorting scaffolding, not part of the task's API shape.
+        { $unset: ['priorityWeight', 'undated'] },
       ]).then((rows) => Task.populate(rows, POPULATE)),
       Task.countDocuments(filter),
       countsPromise,
@@ -144,10 +172,7 @@ export const listTasks = async (query = {}, requestingUser) => {
     return { data, meta: { ...buildPageMeta({ page, limit, total }), counts } };
   }
 
-  // Tasks without a due date sort last rather than first.
-  const sort = sortKey === 'dueDate' ? { dueDate: 1, createdAt: -1 } : sortKey;
-
-  let listQuery = Task.find(filter).populate(POPULATE).sort(sort).skip(skip).limit(limit);
+  let listQuery = Task.find(filter).populate(POPULATE).sort(sortKey).skip(skip).limit(limit);
 
   // MongoDB's default string ordering is byte-wise, which puts "Create Instagram"
   // before "Create course". Collation gives the A–Z order a reader expects.

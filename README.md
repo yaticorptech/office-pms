@@ -106,7 +106,7 @@ All routes are prefixed `/api`. Everything except `/health`, `/meta/options` and
 | GET | `/projects` | any — filters: `search`, `type`, `status`, `owner`, `sort`, `page`, `limit` |
 | GET | `/projects/options` | any — compact list for dropdowns |
 | GET | `/projects/:id` | any |
-| GET | `/projects/:id/tasks` | any |
+| GET | `/projects/:id/tasks` | any — non-admins see only their own tasks, as on `/tasks` |
 | POST | `/projects` | admin |
 | PUT | `/projects/:id` | admin |
 | DELETE | `/projects/:id` | admin — archives by default, `?hard=true` deletes permanently |
@@ -173,7 +173,8 @@ validation messages.
     task is never overdue, so the combination has no results by definition.
 14. Assigning or reassigning a task raises an in-app notification for the assignee (and
     tells the previous owner when a task moves away). Assigning a task to yourself
-    raises nothing. Deleting a task removes its notifications.
+    raises nothing. Deleting a task removes its notifications, and so does permanently
+    deleting the project the task belonged to.
 
 ---
 
@@ -233,12 +234,86 @@ picks them up automatically.
 
 ---
 
+## Testing
+
+```bash
+cd server
+npm test          # the whole suite
+npm run test:watch
+```
+
+199 integration tests run against a real Express server and a real MongoDB (booted
+in memory per file), so routing, validation, auth middleware and the error handler
+are all exercised as they behave in production. Nothing is mocked.
+
+They cover every endpoint and every business rule listed above, plus the security
+boundaries that are easy to regress: employee scoping on both task routes, the
+last-admin protections, password hashes never leaving the API, regex and NoSQL
+injection through filters, the CORS allowlist, rate limiting, request size limits,
+the production configuration guards, and a full production-mode smoke test that
+boots `src/index.js`, serves the built client and shuts down on SIGTERM.
+
+---
+
+## Deployment
+
+The app refuses to start with `NODE_ENV=production` unless it is configured safely:
+a `JWT_SECRET` that is neither the development default nor shorter than 32
+characters, a real `MONGODB_URI`, `BCRYPT_ROUNDS` of at least 10, and a
+`CLIENT_ORIGIN` that is not localhost. Every problem is reported at once.
+
+### Single origin (recommended)
+
+Set `SERVE_CLIENT=true` (the default in production) and this process serves the
+built React app alongside the API. One host, no CORS, and deep links work because
+of the SPA fallback. Hashed assets are cached for a year; `index.html` never is.
+
+```bash
+docker compose up --build            # app + MongoDB, needs JWT_SECRET in .env
+```
+
+or without Docker:
+
+```bash
+npm install && npm run build && npm start
+```
+
+### Split hosting
+
+Host `client/dist` on a CDN instead, and:
+
+- build the client with `VITE_API_URL=https://api.your-company.com/api`
+- set `CLIENT_ORIGIN` on the API to the frontend's origin
+- add an SPA rewrite (all paths → `index.html`) on the static host
+- set `SERVE_CLIENT=false`
+
+### Before the first deploy
+
+1. Generate a secret: `openssl rand -hex 32` → `JWT_SECRET`.
+2. Point `MONGODB_URI` at a real database and raise `BCRYPT_ROUNDS` to 12.
+3. Set `TRUST_PROXY` to the number of proxies in front of the app (1 on most
+   platforms) so rate limiting sees real client IPs rather than the proxy's.
+4. **Do not run the seed.** It writes the published demo passwords and `--fresh`
+   deletes everything; it refuses to run in production for that reason. Create the
+   first admin by calling `POST /api/auth/register` once — the endpoint is public
+   only while the database has no users, and closes permanently afterwards.
+5. Point the platform's health check at `GET /api/health`, which returns 503 while
+   the database is unreachable.
+
+Sign-in, registration and password changes are rate limited (10 failed attempts per
+15 minutes per IP by default; successful sign-ins are not counted). Tune with
+`AUTH_RATE_LIMIT_MAX` and `AUTH_RATE_LIMIT_WINDOW_MS`.
+
+`server/.env.example` documents every variable.
+
+---
+
 ## Scope
 
 **Phase 1 includes:** auth, roles, projects, tasks, assignment, employees,
-both dashboards, search/filtering, responsive UI, validation, loading/empty/error
-states.
+both dashboards, in-app notifications, search/filtering, responsive UI, validation,
+loading/empty/error states.
 
-**Deliberately excluded:** comments, attachments, notifications, time tracking,
-subtasks, Kanban, Gantt, calendar, analytics, client/billing. The schema and
-folder layout leave room for these without rework.
+**Deliberately excluded:** comments, attachments, email/WhatsApp delivery, time
+tracking, subtasks, Kanban, Gantt, calendar, analytics, client/billing. The schema
+and folder layout leave room for these without rework.

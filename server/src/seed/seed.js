@@ -7,12 +7,29 @@
  *   npm run seed:fresh   → wipes users/projects/tasks first, then seeds
  */
 import { connectDatabase, disconnectDatabase } from '../config/db.js';
-import { env } from '../config/env.js';
+import { env, isProduction } from '../config/env.js';
 import { Project } from '../models/Project.js';
 import { Task } from '../models/Task.js';
 import { User } from '../models/User.js';
 
 const FRESH = process.argv.includes('--fresh');
+
+/**
+ * The seed writes well-known demo passwords and `--fresh` deletes every user,
+ * project and task. Neither belongs anywhere near a live database, and the only
+ * thing standing between the two is which .env happens to be loaded — so refuse
+ * outright unless someone has very deliberately opted in.
+ */
+if (isProduction && process.env.ALLOW_PRODUCTION_SEED !== 'yes-i-am-sure') {
+  console.error(
+    '✖ Refusing to seed with NODE_ENV=production.\n' +
+      '  This would create accounts with published demo passwords' +
+      (FRESH ? ' and delete every existing user, project and task.' : '.') +
+      '\n  Bootstrap the first admin through POST /api/auth/register instead.\n' +
+      '  To override deliberately: ALLOW_PRODUCTION_SEED=yes-i-am-sure npm run seed',
+  );
+  process.exit(1);
+}
 
 /** Dates relative to today keep the seed's overdue/upcoming mix meaningful over time. */
 const daysFromNow = (days) => {

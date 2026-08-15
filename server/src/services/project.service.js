@@ -1,10 +1,11 @@
 import mongoose from 'mongoose';
-import { PROJECT_STATUS, TASK_STATUS } from '../config/constants.js';
+import { PROJECT_STATUS, ROLES, TASK_STATUS } from '../config/constants.js';
 import { Project } from '../models/Project.js';
 import { Task } from '../models/Task.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 import { buildPageMeta, escapeRegex, getPagination } from '../utils/pagination.js';
+import * as notificationService from './notification.service.js';
 
 const OWNER_FIELDS = 'name email department role profilePhoto';
 
@@ -152,6 +153,10 @@ export const archiveProject = async (id, { hardDelete = false } = {}) => {
   if (!project) throw ApiError.notFound('Project not found');
 
   if (hardDelete) {
+    // The tasks go, so their notifications must go with them — otherwise the bell
+    // would link to work that no longer exists.
+    const taskIds = await Task.find({ project: project._id }).distinct('_id');
+    await notificationService.removeForTasks(taskIds);
     await Task.deleteMany({ project: project._id });
     await project.deleteOne();
     return { deleted: true, archived: false };
@@ -162,11 +167,16 @@ export const archiveProject = async (id, { hardDelete = false } = {}) => {
   return { deleted: false, archived: true, project: await getProjectById(project._id) };
 };
 
-export const getProjectTasks = async (id) => {
+export const getProjectTasks = async (id, requestingUser) => {
   const project = await Project.findById(id).select('_id').lean();
   if (!project) throw ApiError.notFound('Project not found');
 
-  return Task.find({ project: id })
+  const filter = { project: id };
+  // Employees see only their own work here, exactly as they do on /api/tasks.
+  // Without this the route would be a way around that restriction.
+  if (requestingUser.role !== ROLES.ADMIN) filter.assignedTo = requestingUser._id;
+
+  return Task.find(filter)
     .populate('assignedTo', 'name email department profilePhoto')
     .sort({ status: 1, dueDate: 1 })
     .lean();

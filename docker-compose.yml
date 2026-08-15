@@ -1,0 +1,39 @@
+# Runs the whole system — app plus its own MongoDB — with `docker compose up`.
+# For a managed database (Atlas), drop the `mongo` service and point MONGODB_URI at it.
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping")']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    ports:
+      - '${PORT:-8090}:8090'
+    environment:
+      NODE_ENV: production
+      PORT: 8090
+      MONGODB_URI: mongodb://mongo:27017
+      DB_NAME: ${DB_NAME:-office_pms}
+      SERVE_CLIENT: 'true'
+      # Required — the app refuses to start in production without it.
+      # Generate one with: openssl rand -hex 32
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a .env file next to this compose file}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:

@@ -24,7 +24,10 @@ export const login = async ({ email, password }) => {
  * endpoint from being used to mint accounts.
  */
 export const register = async (payload, requestingUser) => {
-  const userCount = await User.estimatedDocumentCount();
+  // countDocuments, not estimatedDocumentCount: the estimate reads cached collection
+  // metadata that can be stale, and "is the system empty" decides whether this
+  // endpoint is open to the public.
+  const userCount = await User.countDocuments({});
   const isBootstrap = userCount === 0;
 
   if (!isBootstrap && requestingUser?.role !== ROLES.ADMIN) {

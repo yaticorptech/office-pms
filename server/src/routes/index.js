@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import {
   DEPARTMENT_OPTIONS,
   PROJECT_STATUS_OPTIONS,
@@ -17,8 +18,23 @@ import taskRoutes from './task.routes.js';
 
 const router = Router();
 
+const DB_STATES = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+
+/**
+ * Reports the database too, and answers 503 when it is unreachable — a platform
+ * health check must fail while the app cannot actually serve requests.
+ */
 router.get('/health', (_req, res) => {
-  res.json({ success: true, status: 'ok', timestamp: new Date().toISOString() });
+  const state = mongoose.connection.readyState;
+  const healthy = state === 1;
+
+  res.status(healthy ? 200 : 503).json({
+    success: healthy,
+    status: healthy ? 'ok' : 'degraded',
+    database: DB_STATES[state] ?? 'unknown',
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 /**

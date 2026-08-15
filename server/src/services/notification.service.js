@@ -116,3 +116,7 @@ export const markAllAsRead = async (userId) => {
 
 /** Removes notifications pointing at a task that no longer exists. */
 export const removeForTask = (taskId) => Notification.deleteMany({ task: taskId });
+
+/** Bulk equivalent, used when a project is deleted along with all of its tasks. */
+export const removeForTasks = (taskIds = []) =>
+  (taskIds.length === 0 ? Promise.resolve(null) : Notification.deleteMany({ task: { $in: taskIds } }));
