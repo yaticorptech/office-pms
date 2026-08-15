@@ -290,6 +290,16 @@ Deployed 15 Aug 2026. Database: Atlas, `office_pms_prod` on the existing cluster
 Public registration is closed — the first admin exists, so new accounts are created
 from the Employees screen.
 
+Both platforms deploy from `main` on this repository:
+
+| Platform | Root | Builds with |
+| --- | --- | --- |
+| Vercel (client) | `client/` | `vercel.json` — Vite preset |
+| Railway (API) | repo root | `railway.json` → `Dockerfile.server` |
+
+Railway builds from the repository root rather than `server/`, because
+`Dockerfile.server` copies from `server/` and needs the root as its build context.
+
 ### Split hosting — client on Vercel, API on Railway
 
 Config for this is committed: `client/vercel.json` (SPA rewrite, security headers,
