@@ -278,14 +278,58 @@ or without Docker:
 npm install && npm run build && npm start
 ```
 
-### Split hosting
+### Split hosting — client on Vercel, API on Railway
 
-Host `client/dist` on a CDN instead, and:
+Config for this is committed: `client/vercel.json` (SPA rewrite, security headers,
+asset caching) and `railway.json` → `Dockerfile.server` (backend-only image, health
+check on `/api/health`).
 
-- build the client with `VITE_API_URL=https://api.your-company.com/api`
-- set `CLIENT_ORIGIN` on the API to the frontend's origin
-- add an SPA rewrite (all paths → `index.html`) on the static host
-- set `SERVE_CLIENT=false`
+The two hosts need each other's URLs, so the first deploy goes around once:
+
+**1. Database.** In Atlas, use the existing cluster with a *new* database name for
+production, e.g. `office_pms_prod`, so production and local development never share
+data. Allow Railway's egress in the Atlas IP access list.
+
+**2. API on Railway.** Deploy from the repo — `railway.json` selects the backend
+Dockerfile automatically. Set:
+
+| Variable | Value |
+| --- | --- |
+| `NODE_ENV` | `production` |
+| `MONGODB_URI` | the Atlas connection string |
+| `DB_NAME` | `office_pms_prod` |
+| `JWT_SECRET` | `openssl rand -hex 32` — 32+ chars, not the dev default |
+| `BCRYPT_ROUNDS` | `12` |
+| `CLIENT_ORIGIN` | the Vercel URL — placeholder for now, corrected in step 4 |
+
+`PORT`, `SERVE_CLIENT=false` and `TRUST_PROXY=1` are handled for you (Railway injects
+the first; the image sets the other two). Note the deployed URL.
+
+**3. Client on Vercel.** Set the project's **Root Directory** to `client`; Vercel
+reads `vercel.json` from there. Add one environment variable:
+
+```
+VITE_API_URL = https://<your-railway-app>.up.railway.app/api
+```
+
+This is compiled into the bundle at build time, not read at runtime — changing the
+API URL later means redeploying Vercel, not just editing a variable.
+
+**4. Close the loop.** Set `CLIENT_ORIGIN` on Railway to the real Vercel URL and
+redeploy. Until this matches exactly (scheme included, no trailing slash) the browser
+will block every API call as a CORS error. Add preview or custom domains as a
+comma-separated list.
+
+**5. Create the first admin.** Once, against the deployed API:
+
+```bash
+curl -X POST https://<your-railway-app>.up.railway.app/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Your Name","email":"you@yaticorp.com","password":"<a strong password>"}'
+```
+
+That account is created as an admin, and the endpoint closes to the public
+permanently the moment it succeeds. Everyone else is added from the Employees screen.
 
 ### Before the first deploy
 

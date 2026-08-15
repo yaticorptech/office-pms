@@ -1,0 +1,44 @@
+# Backend-only image, for deployments where the client is hosted separately
+# (Vercel, Netlify, a CDN). The root Dockerfile builds the combined single-origin
+# image instead — use that one with docker-compose.
+#
+# Build context is the repository root, so paths below are repo-relative.
+
+FROM node:22-alpine AS deps
+WORKDIR /build/server
+
+COPY server/package*.json ./
+# Production install only: mongodb-memory-server is a dev dependency and would
+# otherwise pull a MongoDB binary into the image.
+RUN npm ci --omit=dev
+
+FROM node:22-alpine AS runtime
+WORKDIR /app
+
+# dumb-init reaps zombies and forwards SIGTERM, so graceful shutdown works.
+RUN apk add --no-cache dumb-init
+
+ENV NODE_ENV=production \
+    # This image ships no client build. Setting it explicitly also means the
+    # startup guard will reject a CLIENT_ORIGIN that still points at localhost,
+    # which would otherwise fail later as a confusing CORS error.
+    SERVE_CLIENT=false \
+    # Railway, Render and Fly all terminate TLS at one proxy in front of the app.
+    TRUST_PROXY=1
+
+COPY --from=deps /build/server/node_modules ./node_modules
+COPY server/package.json ./package.json
+COPY server/src ./src
+
+RUN chown -R node:node /app
+USER node
+
+# The platform injects PORT; this is only the default for a plain `docker run`.
+ENV PORT=8090
+EXPOSE 8090
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8090)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "src/index.js"]

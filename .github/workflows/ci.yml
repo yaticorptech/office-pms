@@ -50,14 +50,24 @@ jobs:
         working-directory: client
 
   docker:
-    name: Docker image builds
+    name: Docker images build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # Combined single-origin image, used by docker-compose.
+          - dockerfile: Dockerfile
+            name: full-stack
+          # Backend-only image, used by Railway when the client is on Vercel.
+          - dockerfile: Dockerfile.server
+            name: server-only
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

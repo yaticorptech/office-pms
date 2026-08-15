@@ -119,6 +119,34 @@ describe('production configuration guards', () => {
     const result = await loadEnv({ NODE_ENV: 'development' });
     assert.equal(result.started, true, result.error);
   });
+
+  it('starts in split-hosting mode when CLIENT_ORIGIN names the real frontend', async () => {
+    // The topology used when the client is on Vercel and the API on Railway.
+    const result = await loadEnv({
+      NODE_ENV: 'production',
+      MONGODB_URI: 'mongodb+srv://user:pass@cluster.mongodb.net',
+      JWT_SECRET: STRONG_SECRET,
+      BCRYPT_ROUNDS: '12',
+      SERVE_CLIENT: 'false',
+      CLIENT_ORIGIN: 'https://office-pms.vercel.app',
+      TRUST_PROXY: '1',
+    });
+
+    assert.equal(result.started, true, result.error);
+  });
+
+  it('accepts several comma-separated client origins', async () => {
+    const result = await loadEnv({
+      NODE_ENV: 'production',
+      MONGODB_URI: 'mongodb+srv://user:pass@cluster.mongodb.net',
+      JWT_SECRET: STRONG_SECRET,
+      BCRYPT_ROUNDS: '12',
+      SERVE_CLIENT: 'false',
+      CLIENT_ORIGIN: 'https://office-pms.vercel.app,https://pms.yaticorp.com',
+    });
+
+    assert.equal(result.started, true, result.error);
+  });
 });
 
 describe('the seed script', () => {
