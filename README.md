@@ -278,6 +278,18 @@ or without Docker:
 npm install && npm run build && npm start
 ```
 
+### Live
+
+| | |
+| --- | --- |
+| App | https://office-pms.vercel.app |
+| API | https://api-production-b4b40.up.railway.app/api |
+| Health | https://api-production-b4b40.up.railway.app/api/health |
+
+Deployed 15 Aug 2026. Database: Atlas, `office_pms_prod` on the existing cluster.
+Public registration is closed — the first admin exists, so new accounts are created
+from the Employees screen.
+
 ### Split hosting — client on Vercel, API on Railway
 
 Config for this is committed: `client/vercel.json` (SPA rewrite, security headers,
