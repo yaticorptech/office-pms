@@ -282,9 +282,13 @@ npm install && npm run build && npm start
 
 | | |
 | --- | --- |
-| App | https://office-pms.vercel.app |
-| API | https://api-production-b4b40.up.railway.app/api |
-| Health | https://api-production-b4b40.up.railway.app/api/health |
+| App | https://office.yaticorp.com |
+| API | https://api.office.yaticorp.com/api |
+| Health | https://api.office.yaticorp.com/api/health |
+
+The platform URLs (`office-pms.vercel.app`, `api-production-b4b40.up.railway.app`)
+still work and stay in `CLIENT_ORIGIN` as a fallback if DNS for the custom domain
+ever fails.
 
 Deployed 15 Aug 2026. Database: Atlas, `office_pms_prod` on the existing cluster.
 Public registration is closed — the first admin exists, so new accounts are created
