@@ -286,9 +286,16 @@ npm install && npm run build && npm start
 | API | https://api.office.yaticorp.com/api |
 | Health | https://api.office.yaticorp.com/api/health |
 
-The platform URLs (`office-pms.vercel.app`, `api-production-b4b40.up.railway.app`)
-still work and stay in `CLIENT_ORIGIN` as a fallback if DNS for the custom domain
-ever fails.
+These are the only URLs. The platform-generated ones are retired: the Railway
+service domain is deleted, and `office-pms.vercel.app` 308-redirects here (Vercel
+always assigns a `.vercel.app` domain, so it cannot be removed — only redirected).
+`CLIENT_ORIGIN` is `https://office.yaticorp.com` alone.
+
+That means DNS for `yaticorp.com` is now a single point of failure for reaching the
+system. If it ever breaks, `railway domain --service api` regenerates a platform
+URL in seconds — but remember that alone is not enough: the client calls whatever
+`VITE_API_URL` was compiled into its bundle, so a working API needs the matching
+`CLIENT_ORIGIN` and a Vercel rebuild too.
 
 Deployed 15 Aug 2026. Database: Atlas, `office_pms_prod` on the existing cluster.
 Public registration is closed — the first admin exists, so new accounts are created
