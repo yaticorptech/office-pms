@@ -34,34 +34,47 @@ const dueLine = (task) =>
   })}.` : '';
 
 export const notifyTaskAssigned = async ({ task, project, actor }) =>
-  create({
-    user: task.assignedTo,
-    actor,
-    type: NOTIFICATION_TYPE.TASK_ASSIGNED,
-    title: `New task: ${task.title}`,
-    message: `You have been assigned a task in ${project?.name || 'a project'}.${dueLine(task)}`,
-    task: task._id,
-    project: task.project,
-  });
-
-export const notifyTaskReassigned = async ({ task, project, actor, previousAssignee }) => {
-  const notifications = [
-    create({
-      user: task.assignedTo,
-      actor,
-      type: NOTIFICATION_TYPE.TASK_REASSIGNED,
-      title: `Task assigned to you: ${task.title}`,
-      message: `This task in ${project?.name || 'a project'} is now yours.${dueLine(task)}`,
-      task: task._id,
-      project: task.project,
-    }),
-  ];
-
-  // The previous owner is told too, so work does not silently disappear from their list.
-  if (previousAssignee && String(previousAssignee) !== String(task.assignedTo)) {
-    notifications.push(
+  Promise.all(
+    (task.assignedTo || []).map((assignee) =>
       create({
-        user: previousAssignee,
+        user: assignee,
+        actor,
+        type: NOTIFICATION_TYPE.TASK_ASSIGNED,
+        title: `New task: ${task.title}`,
+        message: `You have been assigned a task in ${project?.name || 'a project'}.${dueLine(task)}`,
+        task: task._id,
+        project: task.project,
+      }),
+    ),
+  );
+
+/**
+ * Diffs the old and new assignee lists: people added are welcomed to the task,
+ * people removed are told so work does not silently disappear from their list.
+ * People on both lists hear nothing — the task is still theirs.
+ */
+export const notifyTaskAssigneesChanged = async ({ task, project, actor, previousAssignees = [] }) => {
+  const current = (task.assignedTo || []).map(String);
+  const previous = previousAssignees.map(String);
+
+  const added = current.filter((id) => !previous.includes(id));
+  const removed = previous.filter((id) => !current.includes(id));
+
+  return Promise.all([
+    ...added.map((user) =>
+      create({
+        user,
+        actor,
+        type: NOTIFICATION_TYPE.TASK_REASSIGNED,
+        title: `Task assigned to you: ${task.title}`,
+        message: `This task in ${project?.name || 'a project'} is now yours.${dueLine(task)}`,
+        task: task._id,
+        project: task.project,
+      }),
+    ),
+    ...removed.map((user) =>
+      create({
+        user,
         actor,
         type: NOTIFICATION_TYPE.TASK_UNASSIGNED,
         title: `Task reassigned: ${task.title}`,
@@ -69,10 +82,8 @@ export const notifyTaskReassigned = async ({ task, project, actor, previousAssig
         task: task._id,
         project: task.project,
       }),
-    );
-  }
-
-  return Promise.all(notifications);
+    ),
+  ]);
 };
 
 export const listNotifications = async (userId, query = {}) => {

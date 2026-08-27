@@ -33,14 +33,33 @@ const assertProjectAcceptsTasks = async (projectId) => {
 };
 
 /** Business rule #12: inactive employees cannot receive task assignments. */
-const assertAssigneeIsAssignable = async (userId) => {
-  const user = await User.findById(userId).select('name status').lean();
-  if (!user) throw ApiError.badRequest('Selected employee does not exist');
-  if (user.status !== USER_STATUS.ACTIVE) {
-    throw ApiError.badRequest(`${user.name} is inactive and cannot be assigned new tasks`);
+const assertAssigneesAreAssignable = async (userIds) => {
+  const ids = [...new Set(userIds.map(String))];
+  if (ids.length === 0) return [];
+
+  const users = await User.find({ _id: { $in: ids } }).select('name status').lean();
+  if (users.length !== ids.length) {
+    throw ApiError.badRequest('One or more selected employees do not exist');
   }
-  return user;
+
+  const inactive = users.filter((user) => user.status !== USER_STATUS.ACTIVE);
+  if (inactive.length > 0) {
+    const names = inactive.map((user) => user.name).join(', ');
+    const verb = inactive.length === 1 ? 'is' : 'are';
+    throw ApiError.badRequest(`${names} ${verb} inactive and cannot be assigned new tasks`);
+  }
+  return users;
 };
+
+/**
+ * Normalises a stored assignee list (plain ids or populated docs) to id strings.
+ * Documents written before the multi-assignee change hold a single id rather than
+ * an array — `concat` folds both shapes into one list.
+ */
+const assigneeIds = (task) =>
+  [].concat(task.assignedTo ?? []).map((entry) => String(entry?._id ?? entry));
+
+const isAssignedTo = (task, userId) => assigneeIds(task).includes(String(userId));
 
 const toObjectId = (value) => new mongoose.Types.ObjectId(String(value));
 
@@ -193,7 +212,7 @@ export const getTaskById = async (id, requestingUser) => {
   const task = await Task.findById(id).populate(POPULATE).lean();
   if (!task) throw ApiError.notFound('Task not found');
 
-  const isOwnTask = String(task.assignedTo?._id) === String(requestingUser._id);
+  const isOwnTask = isAssignedTo(task, requestingUser._id);
   if (requestingUser.role !== ROLES.ADMIN && !isOwnTask) {
     throw ApiError.forbidden('You can only view tasks assigned to you');
   }
@@ -203,11 +222,11 @@ export const getTaskById = async (id, requestingUser) => {
 
 export const createTask = async (payload, createdBy) => {
   const project = await assertProjectAcceptsTasks(payload.project);
-  await assertAssigneeIsAssignable(payload.assignedTo);
+  await assertAssigneesAreAssignable(payload.assignedTo);
 
   const task = await Task.create({ ...payload, createdBy: createdBy._id });
 
-  // The assignee is told in-app that work has landed on their plate.
+  // Every assignee is told in-app that work has landed on their plate.
   await notificationService.notifyTaskAssigned({ task, project, actor: createdBy._id });
 
   return Task.findById(task._id).populate(POPULATE).lean();
@@ -220,11 +239,14 @@ export const updateTask = async (id, payload, requestingUser) => {
   if (payload.project && String(payload.project) !== String(task.project)) {
     await assertProjectAcceptsTasks(payload.project);
   }
-  if (payload.assignedTo && String(payload.assignedTo) !== String(task.assignedTo)) {
-    await assertAssigneeIsAssignable(payload.assignedTo);
-  }
+  const previousAssignees = assigneeIds(task);
 
-  const previousAssignee = String(task.assignedTo);
+  if (payload.assignedTo) {
+    // Only people being added are validated: someone already on the task may stay
+    // even if their account has since been deactivated.
+    const added = payload.assignedTo.filter((id) => !previousAssignees.includes(String(id)));
+    await assertAssigneesAreAssignable(added);
+  }
 
   // Only fields the caller actually sent are touched; `null` clears, absent leaves alone.
   Object.entries(payload).forEach(([key, value]) => {
@@ -234,13 +256,18 @@ export const updateTask = async (id, payload, requestingUser) => {
 
   await task.save();
 
-  if (String(task.assignedTo) !== previousAssignee) {
+  const assigneesChanged =
+    payload.assignedTo &&
+    (previousAssignees.length !== assigneeIds(task).length ||
+      !previousAssignees.every((id) => isAssignedTo(task, id)));
+
+  if (assigneesChanged) {
     const project = await Project.findById(task.project).select('name').lean();
-    await notificationService.notifyTaskReassigned({
+    await notificationService.notifyTaskAssigneesChanged({
       task,
       project,
       actor: requestingUser?._id,
-      previousAssignee,
+      previousAssignees,
     });
   }
 
@@ -256,7 +283,7 @@ export const updateTaskStatus = async (id, status, requestingUser) => {
   if (!task) throw ApiError.notFound('Task not found');
 
   if (requestingUser.role !== ROLES.ADMIN) {
-    if (String(task.assignedTo) !== String(requestingUser._id)) {
+    if (!isAssignedTo(task, requestingUser._id)) {
       throw ApiError.forbidden('You can only update tasks assigned to you');
     }
     const allowed = EMPLOYEE_STATUS_TRANSITIONS[task.status] || [];

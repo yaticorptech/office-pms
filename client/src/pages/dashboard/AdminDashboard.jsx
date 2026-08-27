@@ -125,7 +125,7 @@ export const AdminDashboard = () => {
     );
   }
 
-  const { summary, recentProjects, recentTasks, overdueTasks } = data;
+  const { summary, recentProjects, recentTasks, overdueTasks, myTasks = [] } = data;
 
   return (
     <>
@@ -189,6 +189,21 @@ export const AdminDashboard = () => {
       </section>
 
       <div className="mt-6 space-y-6">
+        {myTasks.length > 0 && (
+          <Card>
+            <CardHeader
+              title="My tasks"
+              description="Open tasks assigned to you, most urgent first."
+              action={
+                <Button as={Link} to="/tasks?mine=true" variant="secondary" size="sm">
+                  View all {summary.myOpenTasks}
+                </Button>
+              }
+            />
+            <TaskTable tasks={myTasks} columns={{ project: true, assignee: false }} />
+          </Card>
+        )}
+
         <Card>
           <CardHeader
             title="Recent projects"

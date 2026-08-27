@@ -1,14 +1,25 @@
-import { NavLink } from 'react-router-dom';
-import { CheckSquare, FolderKanban, LayoutDashboard, LogOut, User, Users } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
+import {
+  CheckSquare,
+  ClipboardList,
+  FolderKanban,
+  LayoutDashboard,
+  LogOut,
+  User,
+  Users,
+} from 'lucide-react';
 import { Avatar } from '../components/ui/Avatar.jsx';
 import { NotificationBell } from '../components/NotificationBell.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { cx, typeLabel } from '../utils/format.js';
 
+// "Tasks" and "My Tasks" share the /tasks route and differ only in the `mine`
+// query param, so each declares which value of it they own for highlighting.
 const ADMIN_NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/tasks', label: 'Tasks', icon: CheckSquare },
+  { to: '/tasks', label: 'Tasks', icon: CheckSquare, mine: false },
+  { to: '/tasks?mine=true', label: 'My Tasks', icon: ClipboardList, mine: true },
   { to: '/employees', label: 'Employees', icon: Users },
 ];
 
@@ -28,7 +39,16 @@ export const Logo = () => (
 
 export const SidebarContent = ({ onNavigate, showBell = false }) => {
   const { user, isAdmin, signOut } = useAuth();
+  const location = useLocation();
   const items = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
+
+  // NavLink only matches on pathname; items that claim a `mine` value are
+  // narrowed further by the current query string.
+  const refineActive = (item, isActive) => {
+    if (!isActive || item.mine === undefined) return isActive;
+    const mine = new URLSearchParams(location.search).get('mine') === 'true';
+    return item.mine === mine;
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -39,25 +59,28 @@ export const SidebarContent = ({ onNavigate, showBell = false }) => {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2" aria-label="Main navigation">
-        {items.map(({ to, label, icon: Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              cx(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition',
-                isActive
-                  ? 'bg-brand-50 text-brand-700'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-              )
-            }
-          >
-            <Icon size={18} aria-hidden="true" />
-            {label}
-          </NavLink>
-        ))}
+        {items.map((item) => {
+          const { to, label, icon: Icon, end } = item;
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                cx(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition',
+                  refineActive(item, isActive)
+                    ? 'bg-brand-50 text-brand-700'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                )
+              }
+            >
+              <Icon size={18} aria-hidden="true" />
+              {label}
+            </NavLink>
+          );
+        })}
       </nav>
 
       <div className="shrink-0 border-t border-slate-200 p-3">

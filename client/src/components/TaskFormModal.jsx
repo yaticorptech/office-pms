@@ -13,18 +13,24 @@ const emptyForm = {
   title: '',
   description: '',
   project: '',
-  assignedTo: '',
+  assignedTo: [],
   priority: 'medium',
   status: 'todo',
   dueDate: '',
 };
+
+/** Stored assignees may be populated docs, plain ids, or (legacy) a single value. */
+const toAssigneeIds = (assignedTo) =>
+  [].concat(assignedTo ?? []).map((entry) => entry?._id || entry).filter(Boolean);
 
 const validate = (form) => {
   const errors = {};
   if (!form.title.trim()) errors.title = 'Task title is required';
   else if (form.title.trim().length < 2) errors.title = 'Task title is too short';
   if (!form.project) errors.project = 'Select the project this task belongs to';
-  if (!form.assignedTo) errors.assignedTo = 'Every task must be assigned to an employee';
+  if (form.assignedTo.length === 0) {
+    errors.assignedTo = 'Every task must be assigned to at least one employee';
+  }
   return errors;
 };
 
@@ -55,7 +61,7 @@ export const TaskFormModal = ({ open, onClose, task = null, lockedProject = null
             title: task.title || '',
             description: task.description || '',
             project: task.project?._id || task.project || '',
-            assignedTo: task.assignedTo?._id || task.assignedTo || '',
+            assignedTo: toAssigneeIds(task.assignedTo),
             priority: task.priority || 'medium',
             status: task.status || 'todo',
             dueDate: toDateInput(task.dueDate),
@@ -147,7 +153,7 @@ export const TaskFormModal = ({ open, onClose, task = null, lockedProject = null
       description={
         lockedProject
           ? `This task will be added to ${lockedProject.name}.`
-          : 'Tasks always belong to a project and are assigned to one employee.'
+          : 'Tasks always belong to a project and are assigned to one or more employees.'
       }
       size="lg"
       footer={
@@ -239,10 +245,11 @@ export const TaskFormModal = ({ open, onClose, task = null, lockedProject = null
                 options={employeeOptions}
                 value={form.assignedTo}
                 onChange={(value) => setValue('assignedTo', value)}
-                placeholder="Select an employee"
+                placeholder="Select one or more employees"
                 searchPlaceholder="Search employees…"
                 emptyMessage="No active employees found"
                 showAvatar
+                multiple
               />
             )}
           </Field>

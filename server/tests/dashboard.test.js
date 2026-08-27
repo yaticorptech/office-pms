@@ -81,6 +81,23 @@ describe('GET /api/dashboard/admin', () => {
     assert.equal(res.body.data.summary.overdue, 0);
   });
 
+  it("lists the admin's own open tasks, including shared ones", async () => {
+    await createTask(admin.token, { title: 'Mine open', project: project._id, assignedTo: admin.id });
+    await createTask(admin.token, {
+      title: 'Mine done', project: project._id, assignedTo: admin.id, status: 'completed',
+    });
+    await createTask(admin.token, {
+      title: 'Shared with employee', project: project._id, assignedTo: [admin.id, employee.id],
+    });
+    await createTask(admin.token, { title: 'Not mine', project: project._id, assignedTo: employee.id });
+
+    const res = await get('/api/dashboard/admin', { token: admin.token });
+
+    const titles = res.body.data.myTasks.map((task) => task.title).sort();
+    assert.deepEqual(titles, ['Mine open', 'Shared with employee']);
+    assert.equal(res.body.data.summary.myOpenTasks, 2, 'completed and unrelated tasks are excluded');
+  });
+
   it('counts inactive employees separately', async () => {
     await createUser({ email: 'gone@office.test', status: 'inactive' });
 

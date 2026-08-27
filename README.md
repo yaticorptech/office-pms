@@ -115,8 +115,8 @@ All routes are prefixed `/api`. Everything except `/health`, `/meta/options` and
 | Method | Route | Access |
 | --- | --- | --- |
 | GET | `/tasks` | any — filters: `search`, `project`, `assignedTo`, `priority`, `status`, `overdue`, `mine`, `sort`, `page`, `limit`. Non-admins are scoped to their own tasks server-side |
-| GET | `/tasks/:id` | admin, or the assignee |
-| PATCH | `/tasks/:id/status` | admin (any status), or the assignee (allowed transitions only) |
+| GET | `/tasks/:id` | admin, or any assignee |
+| PATCH | `/tasks/:id/status` | admin (any status), or any assignee (allowed transitions only) |
 | POST | `/tasks` | admin |
 | PUT | `/tasks/:id` | admin |
 | DELETE | `/tasks/:id` | admin |
@@ -154,7 +154,8 @@ validation messages.
 
 ## Business rules enforced
 
-1. Every task belongs to a project and has exactly one assignee.
+1. Every task belongs to a project and has at least one assignee — a task can be
+   shared by several employees, and each of them can view it and move its status.
 2. Only admins create projects or assign/reassign tasks.
 3. Employees may update the status of their own tasks only.
 4. **Archived projects reject new tasks** (and tasks cannot be moved into them).
@@ -171,10 +172,11 @@ validation messages.
     Partial updates cannot silently wipe data.
 13. `overdue=true` combined with `status=Completed` returns **nothing** — a completed
     task is never overdue, so the combination has no results by definition.
-14. Assigning or reassigning a task raises an in-app notification for the assignee (and
-    tells the previous owner when a task moves away). Assigning a task to yourself
-    raises nothing. Deleting a task removes its notifications, and so does permanently
-    deleting the project the task belonged to.
+14. Assigning a task raises an in-app notification for every assignee. When the assignee
+    list changes, only the people added are welcomed and only the people removed are told
+    the task is no longer theirs — unchanged assignees hear nothing. Assigning a task to
+    yourself raises nothing. Deleting a task removes its notifications, and so does
+    permanently deleting the project the task belonged to.
 
 ---
 

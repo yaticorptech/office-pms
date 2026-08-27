@@ -1,8 +1,8 @@
 import * as dashboardService from '../services/dashboard.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
-export const adminDashboard = asyncHandler(async (_req, res) => {
-  const data = await dashboardService.getAdminDashboard();
+export const adminDashboard = asyncHandler(async (req, res) => {
+  const data = await dashboardService.getAdminDashboard(req.user);
   res.json({ success: true, data });
 });
 

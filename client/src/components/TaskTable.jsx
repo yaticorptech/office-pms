@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowDown, ArrowUp, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { MetaBadge } from './ui/Badge.jsx';
-import { UserCell } from './ui/Avatar.jsx';
+import { AssigneeCell } from './ui/Avatar.jsx';
 import { Button } from './ui/Button.jsx';
 import { TBody, TD, TH, THead, TR, TableWrap } from './ui/Table.jsx';
 import {
@@ -192,7 +192,7 @@ export const TaskTable = ({
                 )}
                 {columns.assignee && (
                   <TD>
-                    <UserCell user={task.assignedTo} />
+                    <AssigneeCell users={task.assignedTo} />
                   </TD>
                 )}
                 <TD>
@@ -229,9 +229,16 @@ export const TaskTable = ({
               <DueDate task={task} />
             </div>
 
-            {columns.assignee && task.assignedTo && (
+            {columns.assignee && [].concat(task.assignedTo ?? []).length > 0 && (
               <div className="mt-3">
-                <UserCell user={task.assignedTo} subtitle={typeLabel(task.assignedTo.department, '')} />
+                <AssigneeCell
+                  users={task.assignedTo}
+                  subtitle={
+                    [].concat(task.assignedTo ?? []).length === 1
+                      ? typeLabel([].concat(task.assignedTo)[0]?.department, '')
+                      : undefined
+                  }
+                />
               </div>
             )}
 

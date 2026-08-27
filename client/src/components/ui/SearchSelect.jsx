@@ -6,6 +6,9 @@ import { cx } from '../../utils/format.js';
 /**
  * Type-to-filter picker used for choosing an employee or a project.
  * Keyboard: ↑/↓ to move, Enter to pick, Escape to close.
+ *
+ * With `multiple`, `value` is an array of ids: picking toggles membership, the
+ * panel stays open, and each selection is shown as a removable chip.
  */
 export const SearchSelect = ({
   options = [],
@@ -18,6 +21,7 @@ export const SearchSelect = ({
   clearable = false,
   disabled = false,
   invalid = false,
+  multiple = false,
   id,
   describedBy,
 }) => {
@@ -28,10 +32,25 @@ export const SearchSelect = ({
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
-  const selected = useMemo(
-    () => options.find((option) => option.value === value) || null,
-    [options, value],
+  const values = useMemo(
+    () => (multiple ? (Array.isArray(value) ? value : []) : []),
+    [multiple, value],
   );
+
+  const selected = useMemo(
+    () => (multiple ? null : options.find((option) => option.value === value) || null),
+    [multiple, options, value],
+  );
+
+  const selectedOptions = useMemo(
+    () => (multiple ? options.filter((option) => values.includes(option.value)) : []),
+    [multiple, options, values],
+  );
+
+  const isSelected = (optionValue) =>
+    multiple ? values.includes(optionValue) : optionValue === value;
+
+  const hasSelection = multiple ? selectedOptions.length > 0 : Boolean(selected);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -70,6 +89,15 @@ export const SearchSelect = ({
   }, [activeIndex, open]);
 
   const select = (option) => {
+    if (multiple) {
+      // Toggle membership and keep the panel open so several people can be picked.
+      onChange(
+        values.includes(option.value)
+          ? values.filter((entry) => entry !== option.value)
+          : [...values, option.value],
+      );
+      return;
+    }
     onChange(option.value);
     setOpen(false);
   };
@@ -102,13 +130,42 @@ export const SearchSelect = ({
         className={cx(
           'field-control flex items-center justify-between gap-2 text-left',
           invalid && 'field-control-error',
-          !selected && 'text-slate-400',
+          !hasSelection && 'text-slate-400',
         )}
       >
-        <span className="flex min-w-0 items-center gap-2">
-          {showAvatar && selected && <Avatar name={selected.label} size="xs" />}
-          <span className="truncate">{selected ? selected.label : placeholder}</span>
-        </span>
+        {multiple ? (
+          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+            {selectedOptions.length === 0 ? (
+              <span className="truncate">{placeholder}</span>
+            ) : (
+              selectedOptions.map((option) => (
+                <span
+                  key={option.value}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full bg-slate-100 py-0.5 pl-2 pr-1 text-xs font-medium text-slate-700"
+                >
+                  <span className="truncate">{option.label}</span>
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    aria-label={`Remove ${option.label}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onChange(values.filter((entry) => entry !== option.value));
+                    }}
+                    className="rounded-full p-0.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+                  >
+                    <X size={11} />
+                  </span>
+                </span>
+              ))
+            )}
+          </span>
+        ) : (
+          <span className="flex min-w-0 items-center gap-2">
+            {showAvatar && selected && <Avatar name={selected.label} size="xs" />}
+            <span className="truncate">{selected ? selected.label : placeholder}</span>
+          </span>
+        )}
         <span className="flex shrink-0 items-center gap-1">
           {clearable && selected && !disabled && (
             <span
@@ -153,7 +210,7 @@ export const SearchSelect = ({
                 <li
                   key={option.value}
                   role="option"
-                  aria-selected={option.value === value}
+                  aria-selected={isSelected(option.value)}
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => select(option)}
                   className={cx(
@@ -170,7 +227,7 @@ export const SearchSelect = ({
                       </span>
                     )}
                   </span>
-                  {option.value === value && (
+                  {isSelected(option.value) && (
                     <Check size={16} className="shrink-0 text-brand-600" aria-hidden="true" />
                   )}
                 </li>

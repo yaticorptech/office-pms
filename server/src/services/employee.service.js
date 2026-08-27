@@ -12,6 +12,10 @@ const getTaskCounts = async (userIds) => {
 
   const rows = await Task.aggregate([
     { $match: { assignedTo: { $in: userIds } } },
+    // One row per assignee: a shared task counts towards every person on it.
+    { $unwind: '$assignedTo' },
+    // Re-filter after unwinding — a shared task may also carry assignees outside this set.
+    { $match: { assignedTo: { $in: userIds } } },
     { $group: { _id: { user: '$assignedTo', status: '$status' }, count: { $sum: 1 } } },
   ]);
 

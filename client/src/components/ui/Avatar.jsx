@@ -61,3 +61,42 @@ export const UserCell = ({ user, subtitle, size = 'sm' }) => {
     </div>
   );
 };
+
+/**
+ * Renders a task's assignees: one person looks like a UserCell, several become a
+ * stack of overlapping avatars with first names. Accepts an array or (for data
+ * written before multi-assignee support) a single user object.
+ */
+export const AssigneeCell = ({ users, subtitle, size = 'sm', max = 3 }) => {
+  const list = [].concat(users ?? []).filter((user) => user && user.name);
+
+  if (list.length === 0) return <span className="text-sm text-slate-400">Unassigned</span>;
+  if (list.length === 1) return <UserCell user={list[0]} subtitle={subtitle} size={size} />;
+
+  const shown = list.slice(0, max);
+  const extra = list.length - shown.length;
+  const firstNames = shown.map((user) => user.name.split(' ')[0]).join(', ');
+
+  return (
+    <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex shrink-0 -space-x-2">
+        {shown.map((user) => (
+          <Avatar
+            key={user._id || user.name}
+            name={user.name}
+            src={user.profilePhoto}
+            size={size}
+            className="ring-2 ring-white"
+          />
+        ))}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-slate-900">
+          {firstNames}
+          {extra > 0 && <span className="text-slate-500"> +{extra}</span>}
+        </p>
+        <p className="truncate text-xs text-slate-500">{subtitle || `${list.length} assignees`}</p>
+      </div>
+    </div>
+  );
+};
