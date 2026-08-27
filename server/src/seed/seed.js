@@ -104,34 +104,34 @@ const PROJECTS = [
 
 const TASKS = [
   // LMS Development — technology
-  { project: 'lms', title: 'Build login API', description: 'JWT auth with refresh handling and rate limiting.', assignee: 'priya@office.com', priority: 'high', status: 'completed', due: -12 },
-  { project: 'lms', title: 'Create course page', description: 'Course detail layout with syllabus, instructor and enrolment CTA.', assignee: 'priya@office.com', priority: 'high', status: 'in_progress', due: 4 },
-  { project: 'lms', title: 'Test registration flow', description: 'End-to-end checks for signup, email verification and first login.', assignee: 'divya@office.com', priority: 'medium', status: 'todo', due: 9 },
-  { project: 'lms', title: 'Implement course access rules', description: 'Restrict lessons to enrolled learners; handle expiry.', assignee: 'priya@office.com', priority: 'urgent', status: 'todo', due: -2 },
-  { project: 'lms', title: 'Write user documentation', description: 'Short guide for learners and admins.', assignee: 'rahul@office.com', priority: 'low', status: 'todo', due: 20 },
+  { project: 'lms', title: 'Build login API', description: 'JWT auth with refresh handling and rate limiting.', assignees: ['priya@office.com'], priority: 'high', status: 'completed', due: -12 },
+  { project: 'lms', title: 'Create course page', description: 'Course detail layout with syllabus, instructor and enrolment CTA.', assignees: ['priya@office.com'], priority: 'high', status: 'in_progress', due: 4 },
+  { project: 'lms', title: 'Test registration flow', description: 'End-to-end checks for signup, email verification and first login.', assignees: ['divya@office.com', 'priya@office.com'], priority: 'medium', status: 'todo', due: 9 },
+  { project: 'lms', title: 'Implement course access rules', description: 'Restrict lessons to enrolled learners; handle expiry.', assignees: ['priya@office.com'], priority: 'urgent', status: 'todo', due: -2 },
+  { project: 'lms', title: 'Write user documentation', description: 'Short guide for learners and admins.', assignees: ['rahul@office.com'], priority: 'low', status: 'todo', due: 20 },
 
   // AI Card Campaign — marketing
-  { project: 'aicard', title: 'Create promotional poster', description: 'Main campaign poster in three sizes for print and digital.', assignee: 'arjun@office.com', priority: 'high', status: 'completed', due: -8 },
-  { project: 'aicard', title: 'Create Instagram creatives', description: 'Ten story creatives and five feed posts with campaign copy.', assignee: 'arjun@office.com', priority: 'high', status: 'in_progress', due: 2 },
-  { project: 'aicard', title: 'Contact influencers', description: 'Shortlist and reach out to 20 regional creators.', assignee: 'neha@office.com', priority: 'medium', status: 'in_progress', due: 5 },
-  { project: 'aicard', title: 'Prepare WhatsApp campaign', description: 'Message templates, opt-in list and send schedule.', assignee: 'arjun@office.com', priority: 'urgent', status: 'todo', due: -1 },
-  { project: 'aicard', title: 'Track daily leads', description: 'Maintain the daily lead sheet and share a summary each evening.', assignee: 'divya@office.com', priority: 'medium', status: 'todo', due: 7 },
+  { project: 'aicard', title: 'Create promotional poster', description: 'Main campaign poster in three sizes for print and digital.', assignees: ['arjun@office.com'], priority: 'high', status: 'completed', due: -8 },
+  { project: 'aicard', title: 'Create Instagram creatives', description: 'Ten story creatives and five feed posts with campaign copy.', assignees: ['arjun@office.com'], priority: 'high', status: 'in_progress', due: 2 },
+  { project: 'aicard', title: 'Contact influencers', description: 'Shortlist and reach out to 20 regional creators.', assignees: ['neha@office.com'], priority: 'medium', status: 'in_progress', due: 5 },
+  { project: 'aicard', title: 'Prepare WhatsApp campaign', description: 'Message templates, opt-in list and send schedule.', assignees: ['arjun@office.com'], priority: 'urgent', status: 'todo', due: -1 },
+  { project: 'aicard', title: 'Track daily leads', description: 'Maintain the daily lead sheet and share a summary each evening.', assignees: ['divya@office.com'], priority: 'medium', status: 'todo', due: 7 },
 
   // Sales Outreach — sales
-  { project: 'outreach', title: 'Build prospect list', description: 'Compile and clean 500 qualified contacts.', assignee: 'neha@office.com', priority: 'high', status: 'completed', due: -15 },
-  { project: 'outreach', title: 'Write outreach email sequence', description: 'Four-touch sequence with follow-ups.', assignee: 'arjun@office.com', priority: 'medium', status: 'in_progress', due: 3 },
-  { project: 'outreach', title: 'Schedule demo calls', description: 'Book 25 demos for the coming fortnight.', assignee: 'neha@office.com', priority: 'high', status: 'todo', due: 11 },
-  { project: 'outreach', title: 'Update CRM records', description: 'Log every touchpoint and clean duplicate entries.', assignee: 'divya@office.com', priority: 'low', status: 'todo', due: -3 },
+  { project: 'outreach', title: 'Build prospect list', description: 'Compile and clean 500 qualified contacts.', assignees: ['neha@office.com'], priority: 'high', status: 'completed', due: -15 },
+  { project: 'outreach', title: 'Write outreach email sequence', description: 'Four-touch sequence with follow-ups.', assignees: ['arjun@office.com'], priority: 'medium', status: 'in_progress', due: 3 },
+  { project: 'outreach', title: 'Schedule demo calls', description: 'Book 25 demos for the coming fortnight.', assignees: ['neha@office.com'], priority: 'high', status: 'todo', due: 11 },
+  { project: 'outreach', title: 'Update CRM records', description: 'Log every touchpoint and clean duplicate entries.', assignees: ['divya@office.com'], priority: 'low', status: 'todo', due: -3 },
 
   // Recruitment Drive — HR
-  { project: 'hiring', title: 'Publish job descriptions', description: 'Six roles across technology and operations.', assignee: 'rahul@office.com', priority: 'high', status: 'in_progress', due: 6 },
-  { project: 'hiring', title: 'Screen applications', description: 'First-round screening for shortlisted candidates.', assignee: 'rahul@office.com', priority: 'medium', status: 'todo', due: 14 },
-  { project: 'hiring', title: 'Arrange interview panel', description: 'Confirm interviewers and slots for each role.', assignee: 'priya@office.com', priority: 'medium', status: 'todo', due: 18 },
+  { project: 'hiring', title: 'Publish job descriptions', description: 'Six roles across technology and operations.', assignees: ['rahul@office.com'], priority: 'high', status: 'in_progress', due: 6 },
+  { project: 'hiring', title: 'Screen applications', description: 'First-round screening for shortlisted candidates.', assignees: ['rahul@office.com'], priority: 'medium', status: 'todo', due: 14 },
+  { project: 'hiring', title: 'Arrange interview panel', description: 'Confirm interviewers and slots for each role.', assignees: ['priya@office.com'], priority: 'medium', status: 'todo', due: 18 },
 
   // Office Operations — operations
-  { project: 'office', title: 'Collect vendor quotes', description: 'Three quotes each for housekeeping, pantry and security.', assignee: 'divya@office.com', priority: 'medium', status: 'completed', due: -30 },
-  { project: 'office', title: 'Finalise seating plan', description: 'Team-wise seating for the new floor.', assignee: 'divya@office.com', priority: 'high', status: 'in_progress', due: -4 },
-  { project: 'office', title: 'Prepare facilities checklist', description: 'Monthly checklist covering power, network and safety.', assignee: 'rahul@office.com', priority: 'low', status: 'todo', due: 22 },
+  { project: 'office', title: 'Collect vendor quotes', description: 'Three quotes each for housekeeping, pantry and security.', assignees: ['divya@office.com'], priority: 'medium', status: 'completed', due: -30 },
+  { project: 'office', title: 'Finalise seating plan', description: 'Team-wise seating for the new floor.', assignees: ['divya@office.com'], priority: 'high', status: 'in_progress', due: -4 },
+  { project: 'office', title: 'Prepare facilities checklist', description: 'Monthly checklist covering power, network and safety.', assignees: ['rahul@office.com'], priority: 'low', status: 'todo', due: 22 },
 ];
 
 const upsertUser = async ({ name, email, department, role, password }) => {
@@ -193,7 +193,7 @@ const run = async () => {
   let created = 0;
   for (const task of TASKS) {
     const project = projects.get(task.project);
-    const assignee = employees.get(task.assignee);
+    const assignees = task.assignees.map((email) => employees.get(email));
     // eslint-disable-next-line no-await-in-loop
     const existing = await Task.findOne({ title: task.title, project: project._id });
     if (existing) continue;
@@ -203,7 +203,7 @@ const run = async () => {
       title: task.title,
       description: task.description,
       project: project._id,
-      assignedTo: assignee._id,
+      assignedTo: assignees.map((user) => user._id),
       priority: task.priority,
       status: task.status,
       dueDate: daysFromNow(task.due),

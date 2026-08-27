@@ -23,9 +23,11 @@ const taskSchema = new mongoose.Schema(
       index: true,
     },
     assignedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Task must be assigned to an employee'],
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+      validate: {
+        validator: (value) => Array.isArray(value) && value.length > 0,
+        message: 'Task must be assigned to at least one employee',
+      },
       index: true,
     },
     priority: {

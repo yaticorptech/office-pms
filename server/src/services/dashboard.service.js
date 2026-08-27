@@ -33,7 +33,10 @@ const TASK_POPULATE = [
   { path: 'assignedTo', select: 'name email department profilePhoto' },
 ];
 
-export const getAdminDashboard = async () => {
+export const getAdminDashboard = async (user) => {
+  // Admins can be assignees too — their own open work gets a personal section.
+  const myScope = { assignedTo: user._id, status: { $ne: TASK_STATUS.COMPLETED } };
+
   const [
     totalProjects,
     activeProjects,
@@ -45,6 +48,8 @@ export const getAdminDashboard = async () => {
     recentProjectDocs,
     recentTasks,
     overdueTasks,
+    myTasks,
+    myOpenTaskCount,
   ] = await Promise.all([
     Project.countDocuments(),
     Project.countDocuments({ status: PROJECT_STATUS.ACTIVE }),
@@ -60,6 +65,12 @@ export const getAdminDashboard = async () => {
       .lean(),
     Task.find().populate(TASK_POPULATE).sort('-createdAt').limit(5).lean(),
     Task.find(overdueMatch()).populate(TASK_POPULATE).sort({ dueDate: 1 }).limit(5).lean(),
+    Task.find(myScope)
+      .populate(TASK_POPULATE)
+      .sort({ dueDate: 1, createdAt: -1 })
+      .limit(5)
+      .lean(),
+    Task.countDocuments(myScope),
   ]);
 
   const stats = await getProjectStats(recentProjectDocs.map((project) => project._id));
@@ -80,10 +91,12 @@ export const getAdminDashboard = async () => {
       overdue: overdueCount,
       totalEmployees,
       activeEmployees,
+      myOpenTasks: myOpenTaskCount,
     },
     recentProjects,
     recentTasks,
     overdueTasks,
+    myTasks,
   };
 };
 

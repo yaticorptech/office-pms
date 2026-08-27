@@ -89,7 +89,9 @@ export const TaskDetailsPage = () => {
     );
   }
 
-  const isMine = task.assignedTo?._id === user?._id;
+  // Tolerates both shapes: an array of assignees, or the legacy single object.
+  const assignees = [].concat(task.assignedTo ?? []).filter(Boolean);
+  const isMine = assignees.some((assignee) => (assignee?._id || assignee) === user?._id);
   // Admins get every status; the assignee gets only the allowed next steps.
   const employeeActions = isMine ? EMPLOYEE_NEXT_STATUS[task.status] || [] : [];
 
@@ -150,20 +152,24 @@ export const TaskDetailsPage = () => {
                 )}
               </DetailRow>
 
-              <DetailRow icon={User} label="Assigned to">
-                <span className="flex items-center gap-2">
-                  <Avatar
-                    name={task.assignedTo?.name}
-                    src={task.assignedTo?.profilePhoto}
-                    size="xs"
-                  />
-                  <span className="font-medium">{task.assignedTo?.name || 'Unassigned'}</span>
-                  {isMine && (
-                    <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">
-                      You
-                    </span>
-                  )}
-                </span>
+              <DetailRow icon={User} label={assignees.length > 1 ? 'Assigned to (team)' : 'Assigned to'}>
+                {assignees.length === 0 ? (
+                  <span className="font-medium">Unassigned</span>
+                ) : (
+                  <span className="flex flex-col gap-1.5">
+                    {assignees.map((assignee) => (
+                      <span key={assignee._id || assignee} className="flex items-center gap-2">
+                        <Avatar name={assignee?.name} src={assignee?.profilePhoto} size="xs" />
+                        <span className="font-medium">{assignee?.name || 'Unknown'}</span>
+                        {(assignee?._id || assignee) === user?._id && (
+                          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">
+                            You
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </span>
+                )}
               </DetailRow>
 
               <DetailRow icon={CalendarDays} label="Due date">

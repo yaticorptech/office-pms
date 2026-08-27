@@ -46,6 +46,47 @@ describe('POST /api/tasks', () => {
     assert.equal(res.body.data.priority, 'medium');
   });
 
+  it('creates a task shared by several employees', async () => {
+    const res = await createTask(admin.token, {
+      title: 'Pair work',
+      project: project._id,
+      assignedTo: [employee.id, colleague.id],
+    });
+
+    assert.equal(res.status, 201);
+    const ids = res.body.data.assignedTo.map((assignee) => String(assignee._id ?? assignee.id));
+    assert.deepEqual(ids.sort(), [employee.id, colleague.id].sort());
+  });
+
+  it('drops duplicate assignees instead of storing them twice', async () => {
+    const res = await createTask(admin.token, {
+      title: 'Deduped',
+      project: project._id,
+      assignedTo: [employee.id, employee.id],
+    });
+
+    assert.equal(res.status, 201);
+    assert.equal(res.body.data.assignedTo.length, 1);
+  });
+
+  it('rejects a task with an empty assignee list', async () => {
+    const res = await createTask(admin.token, {
+      title: 'Nobody', project: project._id, assignedTo: [],
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it('rejects the whole assignment when any listed employee is inactive', async () => {
+    const inactive = await createUser({ email: 'inactive2@office.test', name: 'Left Company', status: 'inactive' });
+
+    const res = await createTask(admin.token, {
+      title: 'Mixed crew', project: project._id, assignedTo: [employee.id, inactive.id],
+    });
+
+    assert.equal(res.status, 400);
+    assert.match(res.body.message, /inactive/i);
+  });
+
   it('refuses an employee (business rule 2)', async () => {
     const res = await createTask(employee.token, {
       title: 'Self assigned', project: project._id, assignedTo: employee.id,
@@ -131,7 +172,11 @@ describe('GET /api/tasks — scoping', () => {
 
     assert.equal(res.status, 200);
     assert.equal(res.body.data.length, 2);
-    assert.ok(res.body.data.every((task) => String(task.assignedTo._id ?? task.assignedTo.id) === employee.id));
+    assert.ok(
+      res.body.data.every((task) =>
+        task.assignedTo.some((assignee) => String(assignee._id ?? assignee.id) === employee.id),
+      ),
+    );
   });
 
   it('ignores an employee trying to widen the scope with assignedTo', async () => {
@@ -297,6 +342,17 @@ describe('GET /api/tasks/:id', () => {
     assert.equal(res.status, 403);
   });
 
+  it('lets every assignee of a shared task read it', async () => {
+    const task = (await createTask(admin.token, {
+      title: 'Shared', project: project._id, assignedTo: [employee.id, colleague.id],
+    })).body.data;
+
+    const first = await get(`/api/tasks/${task._id}`, { token: employee.token });
+    const second = await get(`/api/tasks/${task._id}`, { token: colleague.token });
+    assert.equal(first.status, 200);
+    assert.equal(second.status, 200);
+  });
+
   it('returns 404 for an unknown task', async () => {
     const res = await get('/api/tasks/507f1f77bcf86cd799439011', { token: admin.token });
     assert.equal(res.status, 404);
@@ -314,6 +370,21 @@ describe('PATCH /api/tasks/:id/status', () => {
 
   it('lets the assignee move To Do → In Progress', async () => {
     const res = await patch(`/api/tasks/${task._id}/status`, { status: 'in_progress' }, { token: employee.token });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.data.status, 'in_progress');
+  });
+
+  it('lets any assignee of a shared task move it forward', async () => {
+    const shared = (await createTask(admin.token, {
+      title: 'Shared movable', project: project._id, assignedTo: [employee.id, colleague.id],
+    })).body.data;
+
+    const res = await patch(
+      `/api/tasks/${shared._id}/status`,
+      { status: 'in_progress' },
+      { token: colleague.token },
+    );
 
     assert.equal(res.status, 200);
     assert.equal(res.body.data.status, 'in_progress');
@@ -431,7 +502,28 @@ describe('PUT /api/tasks/:id', () => {
     const res = await put(`/api/tasks/${task._id}`, { assignedTo: colleague.id }, { token: admin.token });
 
     assert.equal(res.status, 200);
-    assert.equal(String(res.body.data.assignedTo._id ?? res.body.data.assignedTo.id), colleague.id);
+    assert.equal(res.body.data.assignedTo.length, 1);
+    assert.equal(
+      String(res.body.data.assignedTo[0]._id ?? res.body.data.assignedTo[0].id),
+      colleague.id,
+    );
+  });
+
+  it('allows assigning several employees at once', async () => {
+    const res = await put(
+      `/api/tasks/${task._id}`,
+      { assignedTo: [employee.id, colleague.id] },
+      { token: admin.token },
+    );
+
+    assert.equal(res.status, 200);
+    const ids = res.body.data.assignedTo.map((assignee) => String(assignee._id ?? assignee.id));
+    assert.deepEqual(ids.sort(), [employee.id, colleague.id].sort());
+  });
+
+  it('rejects an empty assignee list', async () => {
+    const res = await put(`/api/tasks/${task._id}`, { assignedTo: [] }, { token: admin.token });
+    assert.equal(res.status, 400);
   });
 });
 

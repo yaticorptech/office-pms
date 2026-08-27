@@ -73,6 +73,39 @@ describe('assignment notifications (business rule 14)', () => {
     assert.equal(previousOwner[0].type, 'task_unassigned', 'newest first');
   });
 
+  it('notifies every assignee when a shared task is created', async () => {
+    await createTask(admin.token, {
+      title: 'Team effort', project: project._id, assignedTo: [employee.id, colleague.id],
+    });
+
+    const first = await notificationsFor(employee.token);
+    const second = await notificationsFor(colleague.token);
+
+    assert.equal(first.length, 1);
+    assert.equal(first[0].type, 'task_assigned');
+    assert.equal(second.length, 1);
+    assert.equal(second[0].type, 'task_assigned');
+  });
+
+  it('tells only the newly added person when someone joins a task', async () => {
+    const task = (await createTask(admin.token, {
+      title: 'Growing team', project: project._id, assignedTo: employee.id,
+    })).body.data;
+
+    await put(
+      `/api/tasks/${task._id}`,
+      { assignedTo: [employee.id, colleague.id] },
+      { token: admin.token },
+    );
+
+    const original = await notificationsFor(employee.token);
+    const added = await notificationsFor(colleague.token);
+
+    assert.equal(original.length, 1, 'the existing assignee only has the original assignment');
+    assert.equal(added.length, 1);
+    assert.equal(added[0].type, 'task_reassigned');
+  });
+
   it('raises nothing when a task is updated without changing the assignee', async () => {
     const task = (await createTask(admin.token, {
       title: 'Stable', project: project._id, assignedTo: employee.id,

@@ -9,6 +9,16 @@ export const objectId = z
 export const idParams = z.object({ id: objectId });
 
 /**
+ * One or many ids. A bare id string is accepted for backwards compatibility and
+ * becomes a one-element array; duplicates are dropped while keeping order.
+ */
+export const objectIdArray = (message = 'Select at least one employee') =>
+  z
+    .union([objectId, z.array(objectId)])
+    .transform((value) => [...new Set((Array.isArray(value) ? value : [value]).map(String))])
+    .refine((value) => value.length > 0, { message });
+
+/**
  * Accepts an ISO date, a `yyyy-mm-dd` string, or an explicit empty value (→ null).
  *
  * A key the caller never sent stays `undefined` rather than becoming `null`, so a

@@ -261,7 +261,12 @@ export const ProjectDetailsPage = () => {
             busyTaskId={busyId}
             // Employees viewing a project get the one-click action on their own tasks.
             quickStatus={!isAdmin}
-            canChangeStatus={(task) => isAdmin || task.assignedTo?._id === user?._id}
+            canChangeStatus={(task) =>
+              isAdmin ||
+              [].concat(task.assignedTo ?? []).some(
+                (assignee) => (assignee?._id || assignee) === user?._id,
+              )
+            }
             actions={
               isAdmin
                 ? (task) => (
