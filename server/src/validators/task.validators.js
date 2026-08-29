@@ -43,6 +43,7 @@ export const listTasksQuerySchema = z.object({
   status: optionalFilter(z.enum(TASK_STATUSES)),
   overdue: booleanFlag,
   mine: booleanFlag,
+  selfAssigned: booleanFlag,
   sort: z
     .enum(['dueDate', '-dueDate', 'createdAt', '-createdAt', 'priority', '-priority', 'title', '-title'])
     .optional(),

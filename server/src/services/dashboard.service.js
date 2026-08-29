@@ -50,6 +50,8 @@ export const getAdminDashboard = async (user) => {
     overdueTasks,
     myTasks,
     myOpenTaskCount,
+    selfAssignedTasks,
+    selfAssignedCount,
   ] = await Promise.all([
     Project.countDocuments(),
     Project.countDocuments({ status: PROJECT_STATUS.ACTIVE }),
@@ -71,6 +73,10 @@ export const getAdminDashboard = async (user) => {
       .limit(5)
       .lean(),
     Task.countDocuments(myScope),
+    // Tasks employees created for themselves — admins get a dedicated section
+    // so self-picked work stays visible.
+    Task.find({ selfAssigned: true }).populate(TASK_POPULATE).sort('-createdAt').limit(5).lean(),
+    Task.countDocuments({ selfAssigned: true }),
   ]);
 
   const stats = await getProjectStats(recentProjectDocs.map((project) => project._id));
@@ -92,11 +98,13 @@ export const getAdminDashboard = async (user) => {
       totalEmployees,
       activeEmployees,
       myOpenTasks: myOpenTaskCount,
+      selfAssigned: selfAssignedCount,
     },
     recentProjects,
     recentTasks,
     overdueTasks,
     myTasks,
+    selfAssignedTasks,
   };
 };
 

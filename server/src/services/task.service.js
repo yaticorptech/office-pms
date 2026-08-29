@@ -84,6 +84,7 @@ const buildBaseTaskFilter = (query = {}, requestingUser) => {
   if (query.search) filter.title = new RegExp(escapeRegex(query.search), 'i');
   if (query.project) filter.project = toObjectId(query.project);
   if (query.priority) filter.priority = query.priority;
+  if (query.selfAssigned) filter.selfAssigned = true;
 
   return filter;
 };
@@ -222,9 +223,20 @@ export const getTaskById = async (id, requestingUser) => {
 
 export const createTask = async (payload, createdBy) => {
   const project = await assertProjectAcceptsTasks(payload.project);
-  await assertAssigneesAreAssignable(payload.assignedTo);
 
-  const task = await Task.create({ ...payload, createdBy: createdBy._id });
+  // Employees may only put work on their own plate: whatever assignee list they
+  // send is replaced with themselves, and the task is flagged so the admin
+  // dashboard can surface self-picked work.
+  const selfAssigned = createdBy.role !== ROLES.ADMIN;
+  const assignedTo = selfAssigned ? [createdBy._id] : payload.assignedTo;
+  await assertAssigneesAreAssignable(assignedTo);
+
+  const task = await Task.create({
+    ...payload,
+    assignedTo,
+    selfAssigned,
+    createdBy: createdBy._id,
+  });
 
   // Every assignee is told in-app that work has landed on their plate.
   await notificationService.notifyTaskAssigned({ task, project, actor: createdBy._id });

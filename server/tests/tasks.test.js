@@ -87,11 +87,35 @@ describe('POST /api/tasks', () => {
     assert.match(res.body.message, /inactive/i);
   });
 
-  it('refuses an employee (business rule 2)', async () => {
+  it('lets an employee create a self-assigned task', async () => {
     const res = await createTask(employee.token, {
       title: 'Self assigned', project: project._id, assignedTo: employee.id,
     });
-    assert.equal(res.status, 403);
+
+    assert.equal(res.status, 201);
+    assert.equal(res.body.data.selfAssigned, true);
+    const ids = res.body.data.assignedTo.map((assignee) => String(assignee._id ?? assignee.id));
+    assert.deepEqual(ids, [employee.id]);
+  });
+
+  it('pins an employee-created task to its creator, whatever assignees they send', async () => {
+    const res = await createTask(employee.token, {
+      title: 'Sneaky delegation', project: project._id, assignedTo: [colleague.id],
+    });
+
+    assert.equal(res.status, 201);
+    const ids = res.body.data.assignedTo.map((assignee) => String(assignee._id ?? assignee.id));
+    assert.deepEqual(ids, [employee.id], 'the server replaces the list with the creator');
+    assert.equal(res.body.data.selfAssigned, true);
+  });
+
+  it('does not mark admin-created tasks as self-assigned', async () => {
+    const res = await createTask(admin.token, {
+      title: 'Delegated', project: project._id, assignedTo: employee.id,
+    });
+
+    assert.equal(res.status, 201);
+    assert.equal(res.body.data.selfAssigned, false);
   });
 
   it('requires a project and an assignee (business rule 1)', async () => {
@@ -200,6 +224,17 @@ describe('GET /api/tasks — scoping', () => {
 
     assert.equal(res.body.data.length, 1);
     assert.equal(res.body.data[0].title, 'Admin task');
+  });
+
+  it('lets an admin filter down to self-assigned tasks', async () => {
+    await createTask(employee.token, { title: 'Picked up myself', project: project._id, assignedTo: employee.id });
+
+    const res = await get('/api/tasks?selfAssigned=true', { token: admin.token });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.data.length, 1);
+    assert.equal(res.body.data[0].title, 'Picked up myself');
+    assert.equal(res.body.data[0].selfAssigned, true);
   });
 });
 

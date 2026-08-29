@@ -8,6 +8,7 @@ import {
   ListChecks,
   Plus,
   Timer,
+  UserPlus,
   Zap,
 } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader.jsx';
@@ -125,7 +126,14 @@ export const AdminDashboard = () => {
     );
   }
 
-  const { summary, recentProjects, recentTasks, overdueTasks, myTasks = [] } = data;
+  const {
+    summary,
+    recentProjects,
+    recentTasks,
+    overdueTasks,
+    myTasks = [],
+    selfAssignedTasks = [],
+  } = data;
 
   return (
     <>
@@ -248,6 +256,29 @@ export const AdminDashboard = () => {
             />
           ) : (
             <TaskTable tasks={recentTasks} />
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Self-assigned tasks"
+            description="Tasks employees created and assigned to themselves."
+            action={
+              summary.selfAssigned > 0 && (
+                <Button as={Link} to="/tasks?selfAssigned=true" variant="secondary" size="sm">
+                  View all {summary.selfAssigned}
+                </Button>
+              )
+            }
+          />
+          {selfAssignedTasks.length === 0 ? (
+            <EmptyState
+              icon={UserPlus}
+              title="No self-assigned tasks yet"
+              description="When an employee creates a task for themselves, it will show up here."
+            />
+          ) : (
+            <TaskTable tasks={selfAssignedTasks} />
           )}
         </Card>
 

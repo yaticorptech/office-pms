@@ -26,7 +26,9 @@ router.patch(
   taskController.updateTaskStatus,
 );
 
-router.post('/', requireAdmin, validate(createTaskSchema), taskController.createTask);
+// Any signed-in user may create a task: admins assign anyone, employees only
+// themselves (the service pins the assignee and marks the task self-assigned).
+router.post('/', validate(createTaskSchema), taskController.createTask);
 router.put(
   '/:id',
   requireAdmin,
