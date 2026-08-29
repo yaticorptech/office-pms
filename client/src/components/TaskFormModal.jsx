@@ -3,6 +3,7 @@ import { Button } from './ui/Button.jsx';
 import { Field, Input, Select, Textarea } from './ui/Field.jsx';
 import { SearchSelect } from './ui/SearchSelect.jsx';
 import { Modal } from './ui/Modal.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useOptions } from '../hooks/useOptions.js';
 import { employeesApi, projectsApi, tasksApi } from '../services/resources.js';
@@ -36,10 +37,13 @@ const validate = (form) => {
 
 /**
  * Create / edit task dialog. `lockedProject` pre-selects and freezes the project when
- * the dialog is opened from a project page.
+ * the dialog is opened from a project page. Employees create self-assigned tasks:
+ * the assignee is locked to themselves and the server enforces the same rule.
  */
 export const TaskFormModal = ({ open, onClose, task = null, lockedProject = null, onSaved }) => {
   const isEdit = Boolean(task);
+  const { user, isAdmin } = useAuth();
+  const selfAssign = !isAdmin;
   const options = useOptions();
   const toast = useToast();
 
@@ -66,19 +70,24 @@ export const TaskFormModal = ({ open, onClose, task = null, lockedProject = null
             status: task.status || 'todo',
             dueDate: toDateInput(task.dueDate),
           }
-        : { ...emptyForm, project: lockedProject?._id || '' },
+        : {
+            ...emptyForm,
+            project: lockedProject?._id || '',
+            assignedTo: selfAssign && user?._id ? [user._id] : [],
+          },
     );
-  }, [open, task, lockedProject]);
+  }, [open, task, lockedProject, selfAssign, user?._id]);
 
   useEffect(() => {
     if (!open) return;
-    Promise.all([projectsApi.options(), employeesApi.assignable()])
+    // Employees never pick an assignee, so the employee list is not fetched for them.
+    Promise.all([projectsApi.options(), selfAssign ? null : employeesApi.assignable()])
       .then(([projectsResponse, employeesResponse]) => {
         setProjects(projectsResponse.data);
-        setEmployees(employeesResponse.data);
+        if (employeesResponse) setEmployees(employeesResponse.data);
       })
       .catch(() => setFormError('Could not load projects and employees. Close and try again.'));
-  }, [open]);
+  }, [open, selfAssign]);
 
   const projectOptions = useMemo(
     () =>
@@ -153,7 +162,9 @@ export const TaskFormModal = ({ open, onClose, task = null, lockedProject = null
       description={
         lockedProject
           ? `This task will be added to ${lockedProject.name}.`
-          : 'Tasks always belong to a project and are assigned to one or more employees.'
+          : selfAssign
+            ? 'This task will be assigned to you. Admins can see it on their dashboard.'
+            : 'Tasks always belong to a project and are assigned to one or more employees.'
       }
       size="lg"
       footer={
@@ -235,23 +246,31 @@ export const TaskFormModal = ({ open, onClose, task = null, lockedProject = null
             label="Assign to"
             error={errors.assignedTo}
             required
-            hint="Any employee can be assigned, regardless of department."
+            hint={
+              selfAssign
+                ? 'Tasks you create are always assigned to you.'
+                : 'Any employee can be assigned, regardless of department.'
+            }
           >
-            {({ id, describedBy, invalid }) => (
-              <SearchSelect
-                id={id}
-                describedBy={describedBy}
-                invalid={invalid}
-                options={employeeOptions}
-                value={form.assignedTo}
-                onChange={(value) => setValue('assignedTo', value)}
-                placeholder="Select one or more employees"
-                searchPlaceholder="Search employees…"
-                emptyMessage="No active employees found"
-                showAvatar
-                multiple
-              />
-            )}
+            {({ id, describedBy, invalid }) =>
+              selfAssign ? (
+                <Input id={id} value={`${user?.name || 'Me'} (you)`} disabled readOnly />
+              ) : (
+                <SearchSelect
+                  id={id}
+                  describedBy={describedBy}
+                  invalid={invalid}
+                  options={employeeOptions}
+                  value={form.assignedTo}
+                  onChange={(value) => setValue('assignedTo', value)}
+                  placeholder="Select one or more employees"
+                  searchPlaceholder="Search employees…"
+                  emptyMessage="No active employees found"
+                  showAvatar
+                  multiple
+                />
+              )
+            }
           </Field>
         </div>
 

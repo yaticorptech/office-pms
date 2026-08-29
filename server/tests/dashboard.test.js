@@ -123,6 +123,22 @@ describe('GET /api/dashboard/admin', () => {
     assert.ok(!JSON.stringify(res.body).includes('$2'), 'no password hashes in populated users');
   });
 
+  it('surfaces tasks employees assigned to themselves', async () => {
+    await createTask(employee.token, {
+      title: 'Picked up myself', project: project._id, assignedTo: employee.id,
+    });
+    await createTask(admin.token, {
+      title: 'Delegated by admin', project: project._id, assignedTo: employee.id,
+    });
+
+    const res = await get('/api/dashboard/admin', { token: admin.token });
+    const { selfAssignedTasks, summary } = res.body.data;
+
+    assert.equal(selfAssignedTasks.length, 1);
+    assert.equal(selfAssignedTasks[0].title, 'Picked up myself');
+    assert.equal(summary.selfAssigned, 1, 'admin-delegated tasks are not counted');
+  });
+
   it('handles an empty system without dividing by zero', async () => {
     await resetDatabase();
     const freshAdmin = await createAdmin({ email: 'fresh@office.test' });

@@ -56,6 +56,13 @@ const taskSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    // True when an employee created the task for themselves; the admin dashboard
+    // surfaces these so self-picked work never goes unnoticed.
+    selfAssigned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,

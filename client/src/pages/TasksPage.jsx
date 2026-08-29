@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ListChecks, Pencil, Plus, Trash2, UserCheck } from 'lucide-react';
+import { ListChecks, Pencil, Plus, Trash2, UserCheck, UserPlus } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { FilterBar } from '../components/FilterBar.jsx';
 import { TaskFormModal } from '../components/TaskFormModal.jsx';
@@ -42,6 +42,7 @@ export const TasksPage = () => {
   const status = searchParams.get('status') || '';
   const overdue = searchParams.get('overdue') === 'true';
   const mine = searchParams.get('mine') === 'true';
+  const selfAssigned = searchParams.get('selfAssigned') === 'true';
   const sort = searchParams.get('sort') || 'dueDate';
   const page = Number(searchParams.get('page')) || 1;
 
@@ -91,6 +92,7 @@ export const TasksPage = () => {
           project,
           assignedTo: isAdmin && !mine ? assignedTo : undefined,
           mine: isAdmin && mine ? 'true' : undefined,
+          selfAssigned: isAdmin && selfAssigned ? 'true' : undefined,
           priority,
           status: status || undefined,
           overdue: overdue ? 'true' : undefined,
@@ -100,7 +102,7 @@ export const TasksPage = () => {
         },
         fetchOptions,
       ),
-    [debouncedSearch, project, assignedTo, mine, priority, status, overdue, sort, page, isAdmin],
+    [debouncedSearch, project, assignedTo, mine, selfAssigned, priority, status, overdue, sort, page, isAdmin],
   );
 
   const { data: tasks, meta, loading, error, refetch } = useApiResource(fetcher);
@@ -145,7 +147,12 @@ export const TasksPage = () => {
   };
 
   const hasFilters =
-    Boolean(debouncedSearch) || project !== 'all' || assignedTo !== 'all' || priority !== 'all' || mine;
+    Boolean(debouncedSearch) ||
+    project !== 'all' ||
+    assignedTo !== 'all' ||
+    priority !== 'all' ||
+    mine ||
+    selfAssigned;
 
   const onDelete = async () => {
     setDeleting(true);
@@ -165,7 +172,7 @@ export const TasksPage = () => {
     if (hasFilters || activeTab !== 'all') return 'Try a different search term or clear the filters.';
     return isAdmin
       ? 'Create a task and assign it to an employee to get started.'
-      : 'When an admin assigns you work, it will appear here.';
+      : 'Tasks assigned to you — or ones you create for yourself — will appear here.';
   };
 
   return (
@@ -175,14 +182,12 @@ export const TasksPage = () => {
         description={
           isAdmin
             ? 'Every task across all projects, and who is working on it.'
-            : 'Every task assigned to you.'
+            : 'Every task assigned to you, including ones you create for yourself.'
         }
         action={
-          isAdmin && (
-            <Button icon={Plus} onClick={() => setTaskModal({ open: true, task: null })}>
-              New task
-            </Button>
-          )
+          <Button icon={Plus} onClick={() => setTaskModal({ open: true, task: null })}>
+            New task
+          </Button>
         }
       />
 
@@ -203,22 +208,38 @@ export const TasksPage = () => {
           extra={
             isAdmin
               ? {
-                  active: mine,
+                  active: mine || selfAssigned,
                   node: (
-                    <button
-                      type="button"
-                      onClick={() => setParams({ mine: mine ? '' : 'true', assignedTo: '' })}
-                      aria-pressed={mine}
-                      className={cx(
-                        'inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition',
-                        mine
-                          ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200'
-                          : 'text-slate-600 ring-1 ring-inset ring-slate-300 hover:bg-slate-50',
-                      )}
-                    >
-                      <UserCheck size={15} />
-                      Assigned to me
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setParams({ mine: mine ? '' : 'true', assignedTo: '' })}
+                        aria-pressed={mine}
+                        className={cx(
+                          'inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition',
+                          mine
+                            ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200'
+                            : 'text-slate-600 ring-1 ring-inset ring-slate-300 hover:bg-slate-50',
+                        )}
+                      >
+                        <UserCheck size={15} />
+                        Assigned to me
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setParams({ selfAssigned: selfAssigned ? '' : 'true' })}
+                        aria-pressed={selfAssigned}
+                        className={cx(
+                          'inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition',
+                          selfAssigned
+                            ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200'
+                            : 'text-slate-600 ring-1 ring-inset ring-slate-300 hover:bg-slate-50',
+                        )}
+                      >
+                        <UserPlus size={15} />
+                        Self-assigned
+                      </button>
+                    </>
                   ),
                 }
               : undefined
@@ -244,11 +265,9 @@ export const TasksPage = () => {
                   Clear filters
                 </Button>
               ) : (
-                isAdmin && (
-                  <Button icon={Plus} onClick={() => setTaskModal({ open: true, task: null })}>
-                    Create task
-                  </Button>
-                )
+                <Button icon={Plus} onClick={() => setTaskModal({ open: true, task: null })}>
+                  Create task
+                </Button>
               )
             }
           />
